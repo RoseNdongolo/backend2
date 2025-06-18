@@ -1,66 +1,101 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
 
-# Airline Model
+
+class Roles(models.TextChoices):
+    ADMIN = 'admin', _('Admin')
+    PASSENGER = 'passenger', _('Passenger')
+
+
+# custom user model
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    role = models.CharField(
+        max_length=10,
+        choices=Roles.choices,
+    )
+    
+    def __str__(self):
+        return self.username    
+
+
+# airline model
 class Airline(models.Model):
-    Name = models.CharField(max_length=100, unique=True)
-    Logo = models.ImageField(upload_to='airline_logos/', null=True, blank=True)
-    Country = models.CharField(max_length=100, null=True, blank=True)
-    Description = models.TextField(null=True, blank=True)
+    name = models.CharField(max_length=100, unique=True)
+    logo = models.ImageField(upload_to='airline_logos/', null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.Name
+        return self.name
     
 
-# Flight Model
+# flight model
 class Flight(models.Model):
-    Airline = models.ForeignKey('Airline', on_delete=models.CASCADE, related_name='Flight_from_Airline')
-    Flight_number = models.CharField(max_length=10, unique=True)
-    Destination = models.ForeignKey('Airline', on_delete=models.CASCADE, related_name='Flight_to_destination')
-    Departure_time = models.DateTimeField()
-    Arrival_time = models.DateTimeField()
-    Price = models.DecimalField(max_digits=10, decimal_places=2)
-    Seat_available = models.PositiveBigIntegerField()
+    airline = models.ForeignKey('Airline', on_delete=models.CASCADE, related_name='flight_from_airline')
+    flight_number = models.CharField(max_length=10, unique=True)
+    destination = models.ForeignKey('Airline', on_delete=models.CASCADE, related_name='flight_to_destination')
+    departure_time = models.DateTimeField()
+    arrival_time = models.DateTimeField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    seat_available = models.PositiveBigIntegerField()
 
     def __str__(self):
-        return self.Flight_number
+        return self.flight_number
 
 
-# Booking Model
+# passenger model
+class Passenger(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='passenger_profile', limit_choices_to={'role': Roles.PASSENGER})
+    passport_number = models.CharField(max_length=20, unique=True)
+    nationality = models.CharField(max_length=50)
+    gender = models.CharField(max_length=10, choices=[
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ])
+
+    def __str__(self):
+        return self.user.username
+
+
+# booking model
 class Booking(models.Model):
-    Flight = models.ForeignKey('Flight', on_delete=models.CASCADE, related_name='Booking')
-    Booking_date = models.DateTimeField(auto_now_add=True)
-    BOOKING_STATUS_CHOICES = [
-        ('CONFIRMED', 'confirmed'),
-        ('CANCELLED', 'cancelled'),
-        ('PENDING', 'pending')
+    flight = models.ForeignKey('Flight', on_delete=models.CASCADE, related_name='booking')
+    booking_date = models.DateTimeField(auto_now_add=True)
+    booking_status_choices = [
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('pending', 'Pending')
     ]
-    Booking_status = models.CharField(max_length=10, choices=BOOKING_STATUS_CHOICES, default='PENDING')
+    booking_status = models.CharField(max_length=10, choices=booking_status_choices, default='pending')
 
     def __str__(self):
-        return self.Booking_status
+        return self.booking_status
 
 
-# Payment Model
+# payment model
 class Payment(models.Model):
-    Booking = models.ForeignKey('Booking', on_delete=models.CASCADE, related_name='Payment')
-    Amount = models.DecimalField(max_digits=10, decimal_places=2)
-    Payment_date = models.DateTimeField(auto_now_add=True)
-    PAYMENT_STATUS_CHOICE = [
-        ('PAID', 'paid'),
-        ('FAILED', 'failed'),
-        ('PENDING', 'pending')
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, related_name='payment')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    payment_status_choice = [
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+        ('pending', 'Pending')
     ]
-    Payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICE, default='PENDING')
+    payment_status = models.CharField(max_length=10, choices=payment_status_choice, default='pending')
 
     def __str__(self):
-        return self.Payment_status
+        return self.payment_status
 
 
-# Seat Model
+# seat model
 class Seat(models.Model):
-    Flight = models.ForeignKey('Flight', on_delete=models.CASCADE, related_name='Seat')
-    Seat_number = models.CharField(max_length=5)
-    Is_booking = models.BooleanField(default=False)
+    flight = models.ForeignKey('Flight', on_delete=models.CASCADE, related_name='seat')
+    seat_number = models.CharField(max_length=5)
+    is_booking = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.Seat_number
+        return self.seat_number
